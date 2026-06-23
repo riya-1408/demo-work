@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkVerify – Review & Verification Workflow</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222638;
+    --border: #2e3250;
+    --accent: #5c6ef8;
+    --accent2: #7c8dff;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --subtle: #64748b;
+    --font: 'Inter', system-ui, sans-serif;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 0; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; }
+
+  /* Sidebar */
+  .logo { padding: 22px 20px 16px; border-bottom: 1px solid var(--border); }
+  .logo h1 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent2); }
+  .logo p { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-section { padding: 8px 16px 4px; font-size: 10px; font-weight: 600; color: var(--subtle); letter-spacing: 1px; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; font-size: 13.5px; color: var(--muted); border-left: 3px solid transparent; transition: all 0.15s; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(92,110,248,0.12); color: var(--accent2); border-left-color: var(--accent); }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 20px; }
+
+  .user-block { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #a78bfa); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .user-name { font-size: 13px; font-weight: 600; }
+  .user-role { font-size: 11px; color: var(--muted); }
+  .role-badge { margin-left: auto; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .role-badge.admin { background: rgba(92,110,248,0.2); color: var(--accent2); }
+  .role-badge.employee { background: rgba(34,197,94,0.15); color: var(--green); }
+
+  /* Page */
+  .page { display: none; padding: 28px; max-width: 1300px; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h2 { font-size: 22px; font-weight: 700; color: #fff; }
+  .page-header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 800; color: #fff; line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .stat-accent { color: var(--accent2); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-green:hover { background: rgba(34,197,94,0.25); }
+  .btn-red { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-red:hover { background: rgba(239,68,68,0.22); }
+  .btn-yellow { background: rgba(245,158,11,0.12); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .btn-yellow:hover { background: rgba(245,158,11,0.22); }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; }
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-reviewed { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge-approved { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-rejected { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--surface2); }
+  th { padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  td { padding: 12px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .td-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  td .count-pair { display: flex; flex-direction: column; gap: 1px; }
+  td .claimed { color: var(--muted); font-size: 11px; }
+  td .verified { font-weight: 700; color: var(--text); }
+  td .verified.changed { color: var(--yellow); }
+
+  /* Form */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  input, select, textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; color: var(--text); font-size: 13.5px; font-family: var(--font); transition: border-color 0.15s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface2); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 16px 24px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .close-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 2px 6px; }
+  .close-btn:hover { color: var(--text); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 4px; margin-bottom: 20px; width: fit-content; }
+  .tab { padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); transition: all 0.15s; }
+  .tab.active { background: var(--surface); color: var(--text); font-weight: 600; }
+
+  /* Remark box */
+  .remark-box { background: rgba(92,110,248,0.08); border: 1px solid rgba(92,110,248,0.2); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--text); }
+  .remark-box .remark-meta { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+
+  /* Audit log */
+  .audit-item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .audit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 5px; flex-shrink: 0; }
+  .audit-content { flex: 1; }
+  .audit-title { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 3px; }
+  .audit-detail { font-size: 12px; color: var(--muted); }
+  .audit-time { font-size: 11px; color: var(--subtle); margin-top: 3px; }
+
+  /* Performance */
+  .perf-bar-wrap { margin: 6px 0 2px; }
+  .perf-bar-bg { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+  .perf-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.6s ease; }
+  .perf-bar-fill.green { background: linear-gradient(90deg, #16a34a, var(--green)); }
+
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .empty-state { padding: 48px 20px; text-align: center; color: var(--muted); }
+  .empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .switch-user { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); cursor: pointer; }
+  .switch-user:hover { color: var(--text); }
+
+  .diff-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+  .diff-down { background: rgba(239,68,68,0.15); color: var(--red); }
+  .diff-same { background: rgba(34,197,94,0.1); color: var(--green); }
+
+  .month-selector { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .month-selector select { width: auto; }
+
+  @media (max-width: 768px) {
+    .sidebar { width: 200px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <h1>Work<span>Verify</span></h1>
+      <p>Review & Verification System</p>
+    </div>
+
+    <nav class="nav">
+      <!-- Dynamic nav injected by JS -->
+    </nav>
+
+    <div class="user-block">
+      <div class="user-info" onclick="openUserSwitch()">
+        <div class="user-avatar" id="sidebarAvatar">D</div>
+        <div>
+          <div class="user-name" id="sidebarName">Dhanesh</div>
+          <div class="user-role" id="sidebarRoleLabel">Employee</div>
+        </div>
+        <span class="role-badge employee" id="sidebarRoleBadge">Employee</span>
+      </div>
+    </div>
+    <div class="switch-user" onclick="openUserSwitch()">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Switch User
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main" id="mainContent">
+    <!-- Pages injected by JS -->
+  </div>
+</div>
+
+<!-- User Switch Modal -->
+<div class="modal-overlay" id="userSwitchModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3>Switch User</h3>
+      <button class="close-btn" onclick="closeModal('userSwitchModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Select who is currently logged in:</p>
+      <div id="userList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Review Modal (Admin) -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Review Submission</h3>
+      <button class="close-btn" onclick="closeModal('reviewModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="reviewModalContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('reviewModal')">Cancel</button>
+      <button class="btn btn-red btn-sm" onclick="saveReview('Rejected')">Reject</button>
+      <button class="btn btn-yellow btn-sm" onclick="saveReview('Reviewed')">Save Review</button>
+      <button class="btn btn-green btn-sm" onclick="saveReview('Approved')">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Modal (Employee) -->
+<div class="modal-overlay" id="submitModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Submit Daily Work</h3>
+      <button class="close-btn" onclick="closeModal('submitModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="subDate">
+        </div>
+        <div class="form-group">
+          <label>Reports Created</label>
+          <input type="number" id="subReports" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Videos Created</label>
+          <input type="number" id="subVideos" min="0" placeholder="0">
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <textarea id="subNotes" placeholder="Any notes for the Head…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('submitModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWork()">Submit for Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remark View Modal -->
+<div class="modal-overlay" id="remarkModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>Review Remarks</h3>
+      <button class="close-btn" onclick="closeModal('remarkModal')">×</button>
+    </div>
+    <div class="modal-body" id="remarkModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('remarkModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+const USERS = [
+  { id: 1, name: 'Dhanesh', role: 'employee', initials: 'D', color: '#5c6ef8' },
+  { id: 2, name: 'Priya',   role: 'employee', initials: 'P', color: '#a78bfa' },
+  { id: 3, name: 'Rohan',   role: 'employee', initials: 'R', color: '#22c55e' },
+  { id: 4, name: 'Riya',    role: 'admin',    initials: 'RI', color: '#f59e0b' },
+  { id: 5, name: 'Ankit',   role: 'admin',    initials: 'AN', color: '#ef4444' },
+];
+
+let currentUserId = 1;
+
+// Submissions DB
+let submissions = [
+  { id: 1, employeeId: 1, date: '2026-06-10', claimedReports: 2, claimedVideos: 1, verifiedReports: 1, verifiedVideos: 1, status: 'Reviewed', notes: 'Worked on client A and B reports.', adminRemark: 'Only one report met quality standards.', reviewedBy: 4, reviewedAt: '2026-06-10T18:45:00' },
+  { id: 2, employeeId: 1, date: '2026-06-11', claimedReports: 3, claimedVideos: 2, verifiedReports: 3, verifiedVideos: 2, status: 'Approved', notes: '', adminRemark: '', reviewedBy: 4, reviewedAt: '2026-06-11T09:20:00' },
+  { id: 3, employeeId: 1, date: '2026-06-12', claimedReports: 1, claimedVideos: 0, verifiedReports: null, verifiedVideos: null, status: 'Pending', notes: 'Report for project Delta.', adminRemark: '', reviewedBy: null, reviewedAt: null },
+  { id: 4, employeeId: 2, date: '2026-06-10', claimedReports: 4, claimedVideos: 2, verifiedReports: 3, verifiedVideos: 2, status: 'Reviewed', notes: '', adminRemark: 'One report was incomplete.', reviewedBy: 5, reviewedAt: '2026-06-10T17:00:00' },
+  { id: 5, employeeId: 2, date: '2026-06-12', claimedReports: 2, claimedVideos: 1, verifiedReports: null, verifiedVideos: null, status: 'Pending', notes: '', adminRemark: '', reviewedBy: null, reviewedAt: null },
+  { id: 6, employeeId: 3, date: '2026-06-11', claimedReports: 5, claimedVideos: 3, verifiedReports: 4, verifiedVideos: 3, status: 'Reviewed', notes: '', adminRemark: 'Good quality overall.', reviewedBy: 5, reviewedAt: '2026-06-11T15:30:00' },
+  { id: 7, employeeId: 3, date: '2026-06-13', claimedReports: 2, claimedVideos: 2, verifiedReports: null, verifiedVideos: null, status: 'Pending', notes: '', adminRemark: '', reviewedBy: null, reviewedAt: null },
+];
+
+let auditLog = [
+  { id: 1, submissionId: 1, changedBy: 4, action: 'Reviewed', field: 'verified_reports', oldVal: 2, newVal: 1, reason: 'Second report did not satisfy review criteria.', timestamp: '2026-06-10T18:45:00' },
+  { id: 2, submissionId: 4, changedBy: 5, action: 'Reviewed', field: 'verified_reports', oldVal: 4, newVal: 3, reason: 'One report was incomplete and lacked required sections.', timestamp: '2026-06-10T17:00:00' },
+  { id: 3, submissionId: 6, changedBy: 5, action: 'Reviewed', field: 'verified_reports', oldVal: 5, newVal: 4, reason: 'Minor revision needed on report 5.', timestamp: '2026-06-11T15:30:00' },
+];
+
+let nextSubId = 8;
+let nextAuditId = 4;
+let reviewingSubId = null;
+
+// ===================== HELPERS =====================
+const getUser = (id) => USERS.find(u => u.id === id);
+const currentUser = () => getUser(currentUserId);
+const isAdmin = () => currentUser().role === 'admin';
+const fmt = (d) => { const dt = new Date(d); return dt.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}); };
+const fmtDT = (d) => { if (!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('en-IN', {day:'2-digit',month:'short'}) + ' ' + dt.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}); };
+const statusBadge = (s) => `<span class="badge badge-${s.toLowerCase()}">${s}</span>`;
+const pendingCount = () => submissions.filter(s => s.status === 'Pending').length;
+
+// ===================== NAV =====================
+function buildNav() {
+  const nav = document.querySelector('.nav');
+  if (isAdmin()) {
+    nav.innerHTML = `
+      <div class="nav-section">Admin</div>
+      <div class="nav-item active" onclick="showPage('adminDashboard',this)">
+        ${icons.dashboard} Dashboard ${pendingCount() > 0 ? `<span class="nav-badge">${pendingCount()}</span>` : ''}
+      </div>
+      <div class="nav-item" onclick="showPage('adminReview',this)">
+        ${icons.review} Review Queue ${pendingCount() > 0 ? `<span class="nav-badge">${pendingCount()}</span>` : ''}
+      </div>
+      <div class="nav-item" onclick="showPage('allSubmissions',this)">
+        ${icons.list} All Submissions
+      </div>
+      <div class="nav-section" style="margin-top:8px">Reports</div>
+      <div class="nav-item" onclick="showPage('performance',this)">
+        ${icons.chart} Performance
+      </div>
+      <div class="nav-item" onclick="showPage('auditLog',this)">
+        ${icons.audit} Audit Log
+      </div>`;
+  } else {
+    nav.innerHTML = `
+      <div class="nav-section">Employee</div>
+      <div class="nav-item active" onclick="showPage('empDashboard',this)">
+        ${icons.dashboard} My Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('empSubmissions',this)">
+        ${icons.list} My Submissions
+      </div>
+      <div class="nav-section" style="margin-top:8px">Reports</div>
+      <div class="nav-item" onclick="showPage('performance',this)">
+        ${icons.chart} My Performance
+      </div>`;
+  }
+}
+
+const icons = {
+  dashboard: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+  review: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+  chart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+  audit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+};
+
+function showPage(id, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById(id);
+  if (page) { page.classList.add('active'); renderPage(id); }
+  if (navEl) navEl.classList.add('active');
+}
+
+// ===================== RENDER =====================
+function renderAll() {
+  buildNav();
+  updateSidebar();
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="page active" id="adminDashboard"><div class="page-header"><h2>Dashboard</h2><p>Overview of all submissions and team performance.</p></div><div id="adminDashboardContent"></div></div>
+    <div class="page" id="adminReview"><div class="page-header"><h2>Review Queue</h2><p>Review and verify pending employee submissions.</p></div><div id="adminReviewContent"></div></div>
+    <div class="page" id="allSubmissions"><div class="page-header"><h2>All Submissions</h2><p>Complete history of employee submissions.</p></div><div id="allSubmissionsContent"></div></div>
+    <div class="page" id="empDashboard"><div class="page-header"><h2>My Dashboard</h2><p>Track your submitted work and verification status.</p></div><div id="empDashboardContent"></div></div>
+    <div class="page" id="empSubmissions"><div class="page-header"><h2>My Submissions</h2><p>All your daily submissions and their review status.</p></div><div id="empSubmissionsContent"></div></div>
+    <div class="page" id="performance"><div class="page-header"><h2>Performance</h2><p>Monthly totals based on verified counts.</p></div><div id="performanceContent"></div></div>
+    <div class="page" id="auditLog"><div class="page-header"><h2>Audit Log</h2><p>All changes made during Head reviews.</p></div><div id="auditLogContent"></div></div>
+  `;
+  if (isAdmin()) { renderPage('adminDashboard'); }
+  else { renderPage('empDashboard'); }
+}
+
+function renderPage(id) {
+  switch(id) {
+    case 'adminDashboard': renderAdminDashboard(); break;
+    case 'adminReview': renderAdminReview(); break;
+    case 'allSubmissions': renderAllSubmissions(); break;
+    case 'empDashboard': renderEmpDashboard(); break;
+    case 'empSubmissions': renderEmpSubmissions(); break;
+    case 'performance': renderPerformance(); break;
+    case 'auditLog': renderAuditLog(); break;
+  }
+}
+
+// ---- Admin Dashboard ----
+function renderAdminDashboard() {
+  const pending = submissions.filter(s => s.status === 'Pending').length;
+  const reviewed = submissions.filter(s => s.status !== 'Pending').length;
+  const totalClaimed = submissions.reduce((a,s) => a + s.claimedReports, 0);
+  const totalVerified = submissions.filter(s=>s.verifiedReports!=null).reduce((a,s) => a + s.verifiedReports, 0);
+  const employees = USERS.filter(u => u.role === 'employee');
+
+  let empRows = employees.map(emp => {
+    const subs = submissions.filter(s => s.employeeId === emp.id);
+    const cr = subs.reduce((a,s) => a + s.claimedReports, 0);
+    const vr = subs.filter(s=>s.verifiedReports!=null).reduce((a,s) => a + s.verifiedReports, 0);
+    const cv = subs.reduce((a,s) => a + s.claimedVideos, 0);
+    const vv = subs.filter(s=>s.verifiedVideos!=null).reduce((a,s) => a + s.verifiedVideos, 0);
+    const pend = subs.filter(s=>s.status==='Pending').length;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${emp.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${emp.initials}</div>
+        ${emp.name}
+      </div></td>
+      <td>${cr}</td><td>${vr}</td><td>${cv}</td><td>${vv}</td>
+      <td>${pend > 0 ? `<span class="badge badge-pending">${pend} Pending</span>` : '<span class="badge badge-approved">All Clear</span>'}</td>
+      <td><div class="td-actions"><button class="btn btn-sm btn-outline" onclick="filterByEmployee(${emp.id})">View</button></div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('adminDashboardContent').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Pending Reviews</div><div class="stat-value" style="color:var(--yellow)">${pending}</div><div class="stat-sub">Need attention</div></div>
+      <div class="stat-card"><div class="stat-label">Reviewed</div><div class="stat-value" style="color:var(--green)">${reviewed}</div><div class="stat-sub">Completed</div></div>
+      <div class="stat-card"><div class="stat-label">Claimed Reports</div><div class="stat-value stat-accent">${totalClaimed}</div><div class="stat-sub">By employees</div></div>
+      <div class="stat-card"><div class="stat-label">Verified Reports</div><div class="stat-value" style="color:var(--green)">${totalVerified}</div><div class="stat-sub">After review</div></div>
+    </div>
+    <div class="section-title">Team Overview</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Claimed Reports</th><th>Verified Reports</th><th>Claimed Videos</th><th>Verified Videos</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${empRows}</tbody>
+      </table>
+    </div>
+    ${pending > 0 ? `<div style="margin-top:20px;padding:14px 18px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--yellow);font-weight:600">⚠ ${pending} submission(s) pending your review</span>
+      <button class="btn btn-yellow btn-sm" onclick="showPage('adminReview',null);document.querySelectorAll('.nav-item')[1].classList.add('active');document.querySelectorAll('.nav-item')[0].classList.remove('active')">Go to Review Queue →</button>
+    </div>` : ''}
+  `;
+}
+
+// ---- Admin Review Queue ----
+function renderAdminReview() {
+  const pending = submissions.filter(s => s.status === 'Pending');
+  let html = '';
+  if (pending.length === 0) {
+    html = `<div class="empty-state"><svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><circle cx="32" cy="32" r="28"/><path d="M20 32l8 8 16-16"/></svg><p>All submissions have been reviewed. Great work!</p></div>`;
+  } else {
+    html = pending.map(s => {
+      const emp = getUser(s.employeeId);
+      return `<div class="card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:${emp.color};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">${emp.initials}</div>
+            <div>
+              <div style="font-weight:700;font-size:14px">${emp.name}</div>
+              <div style="font-size:12px;color:var(--muted)">${fmt(s.date)}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${statusBadge(s.status)}
+            <button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.id})">Review →</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:16px">
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">CLAIMED REPORTS</div><div style="font-size:22px;font-weight:800">${s.claimedReports}</div></div>
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">CLAIMED VIDEOS</div><div style="font-size:22px;font-weight:800">${s.claimedVideos}</div></div>
+          ${s.notes ? `<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">EMPLOYEE NOTES</div><div style="font-size:13px;color:var(--text)">${s.notes}</div></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('adminReviewContent').innerHTML = html;
+}
+
+// ---- All Submissions ----
+function renderAllSubmissions(filterEmpId) {
+  let subs = filterEmpId ? submissions.filter(s => s.employeeId === filterEmpId) : [...submissions];
+  subs.sort((a,b) => new Date(b.date) - new Date(a.date));
+  const empFilter = filterEmpId ? USERS.find(u=>u.id===filterEmpId) : null;
+
+  const empOptions = USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}" ${filterEmpId==u.id?'selected':''}>${u.name}</option>`).join('');
+
+  let rows = subs.map(s => {
+    const emp = getUser(s.employeeId);
+    const rev = s.reviewedBy ? getUser(s.reviewedBy) : null;
+    const vrChanged = s.verifiedReports !== null && s.verifiedReports !== s.claimedReports;
+    const vvChanged = s.verifiedVideos !== null && s.verifiedVideos !== s.claimedVideos;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:7px">
+        <div style="width:24px;height:24px;border-radius:50%;background:${emp.color};display:flex;align-items:center;justify-content:font-size:9px;font-weight:700;color:#fff;justify-content:center;font-size:9px">${emp.initials}</div>${emp.name}</div></td>
+      <td>${fmt(s.date)}</td>
+      <td><div class="count-pair"><span class="claimed">Claimed: ${s.claimedReports}</span><span class="verified ${vrChanged?'changed':''}">${s.verifiedReports !== null ? 'Verified: '+s.verifiedReports : '—'}</span></div></td>
+      <td><div class="count-pair"><span class="claimed">Claimed: ${s.claimedVideos}</span><span class="verified ${vvChanged?'changed':''}">${s.verifiedVideos !== null ? 'Verified: '+s.verifiedVideos : '—'}</span></div></td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${rev ? rev.name : '—'}</td>
+      <td><div class="td-actions">
+        ${s.status === 'Pending' ? `<button class="btn btn-sm btn-yellow" onclick="openReviewModal(${s.id})">Review</button>` : `<button class="btn btn-sm btn-outline" onclick="openReviewModal(${s.id})">Edit</button>`}
+        ${s.adminRemark ? `<button class="btn btn-sm btn-outline" onclick="viewRemark(${s.id})">Remark</button>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('allSubmissionsContent').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <label style="font-size:13px;color:var(--muted)">Filter by Employee:</label>
+      <select style="width:auto" onchange="filterByEmployee(this.value)">
+        <option value="">All Employees</option>${empOptions}
+      </select>
+      ${empFilter ? `<button class="btn btn-sm btn-outline" onclick="renderPage('allSubmissions')">Clear Filter</button>` : ''}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Date</th><th>Reports</th><th>Videos</th><th>Status</th><th>Reviewed By</th><th>Actions</th></tr></thead>
+        <tbody>${rows.length ? rows : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">No submissions found</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+function filterByEmployee(id) {
+  showPage('allSubmissions', null);
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item')[2] && document.querySelectorAll('.nav-item')[2].classList.add('active');
+  renderAllSubmissions(id ? parseInt(id) : null);
+}
+
+// ---- Employee Dashboard ----
+function renderEmpDashboard() {
+  const uid = currentUserId;
+  const subs = submissions.filter(s => s.employeeId === uid);
+  const pending = subs.filter(s => s.status === 'Pending').length;
+  const totalCR = subs.reduce((a,s)=>a+s.claimedReports,0);
+  const totalVR = subs.filter(s=>s.verifiedReports!=null).reduce((a,s)=>a+s.verifiedReports,0);
+  const totalCV = subs.reduce((a,s)=>a+s.claimedVideos,0);
+  const totalVV = subs.filter(s=>s.verifiedVideos!=null).reduce((a,s)=>a+s.verifiedVideos,0);
+  const recent = [...subs].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+
+  let rows = recent.map(s => {
+    const vrChanged = s.verifiedReports !== null && s.verifiedReports !== s.claimedReports;
+    return `<tr>
+      <td>${fmt(s.date)}</td>
+      <td>${s.claimedReports}</td>
+      <td>${s.verifiedReports !== null ? `<b>${s.verifiedReports}</b>${vrChanged ? `<span class="diff-chip diff-down">-${s.claimedReports-s.verifiedReports}</span>` : '<span class="diff-chip diff-same">✓</span>'}` : '—'}</td>
+      <td>${s.claimedVideos}</td>
+      <td>${s.verifiedVideos !== null ? `<b>${s.verifiedVideos}</b>` : '—'}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${s.adminRemark ? `<button class="btn btn-sm btn-outline" onclick="viewRemark(${s.id})">View</button>` : '<span style="color:var(--subtle);font-size:12px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('empDashboardContent').innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+      <button class="btn btn-primary" onclick="openSubmitModal()">+ Submit Today's Work</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Pending Reviews</div><div class="stat-value" style="color:var(--yellow)">${pending}</div></div>
+      <div class="stat-card"><div class="stat-label">Claimed Reports</div><div class="stat-value stat-accent">${totalCR}</div></div>
+      <div class="stat-card"><div class="stat-label">Verified Reports</div><div class="stat-value" style="color:var(--green)">${totalVR}</div></div>
+      <div class="stat-card"><div class="stat-label">Verified Videos</div><div class="stat-value" style="color:var(--green)">${totalVV}</div></div>
+    </div>
+    <div class="section-title">Recent Submissions</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Claimed Reports</th><th>Verified Reports</th><th>Claimed Videos</th><th>Verified Videos</th><th>Status</th><th>Remark</th></tr></thead>
+        <tbody>${rows.length ? rows : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">No submissions yet. Submit your first entry!</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+// ---- Employee All Submissions ----
+function renderEmpSubmissions() {
+  const subs = [...submissions.filter(s => s.employeeId === currentUserId)].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  let rows = subs.map(s => {
+    const vrChanged = s.verifiedReports !== null && s.verifiedReports !== s.claimedReports;
+    const rev = s.reviewedBy ? getUser(s.reviewedBy) : null;
+    return `<tr>
+      <td>${fmt(s.date)}</td>
+      <td>${s.claimedReports}</td>
+      <td>${s.verifiedReports !== null ? `<b>${s.verifiedReports}</b>${vrChanged ? `<span class="diff-chip diff-down">-${s.claimedReports-s.verifiedReports}</span>` : '<span class="diff-chip diff-same">✓</span>'}` : '—'}</td>
+      <td>${s.claimedVideos}</td>
+      <td>${s.verifiedVideos !== null ? `<b>${s.verifiedVideos}</b>` : '—'}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${rev ? rev.name : '—'}</td>
+      <td>${s.adminRemark ? `<button class="btn btn-sm btn-outline" onclick="viewRemark(${s.id})">View</button>` : '<span style="color:var(--subtle)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('empSubmissionsContent').innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openSubmitModal()">+ Submit Today's Work</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Claimed Reports</th><th>Verified Reports</th><th>Claimed Videos</th><th>Verified Videos</th><th>Status</th><th>Reviewed By</th><th>Remark</th></tr></thead>
+        <tbody>${rows.length ? rows : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">No submissions found.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+// ---- Performance ----
+function renderPerformance() {
+  const isAdm = isAdmin();
+  const months = ['June 2026', 'May 2026', 'April 2026'];
+  let html = `<div class="month-selector"><label style="font-size:13px;color:var(--muted)">Month:</label><select><option>June 2026</option><option>May 2026</option></select></div>`;
+
+  if (isAdm) {
+    const employees = USERS.filter(u=>u.role==='employee');
+    html += employees.map(emp => {
+      const subs = submissions.filter(s=>s.employeeId===emp.id);
+      const cr = subs.reduce((a,s)=>a+s.claimedReports,0);
+      const vr = subs.filter(s=>s.verifiedReports!=null).reduce((a,s)=>a+s.verifiedReports,0);
+      const cv = subs.reduce((a,s)=>a+s.claimedVideos,0);
+      const vv = subs.filter(s=>s.verifiedVideos!=null).reduce((a,s)=>a+s.verifiedVideos,0);
+      const rPct = cr > 0 ? Math.round((vr/cr)*100) : 100;
+      return `<div class="card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:36px;height:36px;border-radius:50%;background:${emp.color};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px">${emp.initials}</div>
+          <div><div style="font-weight:700">${emp.name}</div><div style="font-size:12px;color:var(--muted)">June 2026</div></div>
+          <div style="margin-left:auto;font-size:20px;font-weight:800;color:${rPct>=90?'var(--green)':rPct>=75?'var(--yellow)':'var(--red)'}"> ${rPct}%</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">REPORTS</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Claimed: <b>${cr}</b></span><span>Verified: <b style="color:var(--green)">${vr}</b></span></div>
+            <div class="perf-bar-bg"><div class="perf-bar-fill green" style="width:${cr>0?(vr/cr*100):100}%"></div></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">VIDEOS</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Claimed: <b>${cv}</b></span><span>Verified: <b style="color:var(--green)">${vv}</b></span></div>
+            <div class="perf-bar-bg"><div class="perf-bar-fill" style="width:${cv>0?(vv/cv*100):100}%"></div></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    const subs = submissions.filter(s=>s.employeeId===currentUserId);
+    const cr = subs.reduce((a,s)=>a+s.claimedReports,0);
+    const vr = subs.filter(s=>s.verifiedReports!=null).reduce((a,s)=>a+s.verifiedReports,0);
+    const cv = subs.reduce((a,s)=>a+s.claimedVideos,0);
+    const vv = subs.filter(s=>s.verifiedVideos!=null).reduce((a,s)=>a+s.verifiedVideos,0);
+    const rPct = cr > 0 ? Math.round((vr/cr)*100) : 100;
+    html += `<div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Claimed Reports</div><div class="stat-value stat-accent">${cr}</div></div>
+      <div class="stat-card"><div class="stat-label">Verified Reports</div><div class="stat-value" style="color:var(--green)">${vr}</div></div>
+      <div class="stat-card"><div class="stat-label">Claimed Videos</div><div class="stat-value stat-accent">${cv}</div></div>
+      <div class="stat-card"><div class="stat-label">Verified Videos</div><div class="stat-value" style="color:var(--green)">${vv}</div></div>
+    </div>
+    <div class="card" style="margin-top:4px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Approval Rate</div>
+      <div style="font-size:36px;font-weight:800;color:${rPct>=90?'var(--green)':rPct>=75?'var(--yellow)':'var(--red)'}">
+        ${rPct}% <span style="font-size:14px;font-weight:400;color:var(--muted)">of claimed work verified</span>
+      </div>
+      <div class="perf-bar-bg" style="margin-top:14px"><div class="perf-bar-fill green" style="width:${rPct}%"></div></div>
+      ${vr < cr ? `<div style="margin-top:12px;font-size:13px;color:var(--muted)">${cr-vr} report(s) were not verified. Check remarks for details.</div>` : ''}
+    </div>`;
+  }
+
+  document.getElementById('performanceContent').innerHTML = html;
+}
+
+// ---- Audit Log ----
+function renderAuditLog() {
+  if (!isAdmin()) { document.getElementById('auditLogContent').innerHTML = '<div class="empty-state"><p>Access restricted to Admins.</p></div>'; return; }
+  const items = [...auditLog].reverse().map(a => {
+    const changer = getUser(a.changedBy);
+    const sub = submissions.find(s=>s.id===a.submissionId);
+    const emp = sub ? getUser(sub.employeeId) : null;
+    return `<div class="audit-item">
+      <div class="audit-dot"></div>
+      <div class="audit-content">
+        <div class="audit-title"><b>${changer.name}</b> changed verified_reports for <b>${emp?.name||'?'}</b> (${sub?fmt(sub.date):''})</div>
+        <div class="audit-detail">
+          ${a.oldVal} → ${a.newVal} (${a.action})
+          ${a.reason ? `<div style="margin-top:4px;color:var(--muted)">Reason: "${a.reason}"</div>` : ''}
+        </div>
+        <div class="audit-time">${fmtDT(a.timestamp)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('auditLogContent').innerHTML = `<div class="card">${items.length ? items : '<div class="empty-state"><p>No audit entries yet.</p></div>'}</div>`;
+}
+
+// ===================== MODALS =====================
+function openReviewModal(subId) {
+  reviewingSubId = subId;
+  const s = submissions.find(x=>x.id===subId);
+  const emp = getUser(s.employeeId);
+  document.getElementById('reviewModalContent').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:50%;background:${emp.color};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">${emp.initials}</div>
+      <div><div style="font-weight:700;font-size:15px">${emp.name}</div><div style="font-size:12px;color:var(--muted)">${fmt(s.date)}</div></div>
+      <div style="margin-left:auto">${statusBadge(s.status)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+      <div style="background:var(--surface2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">EMPLOYEE CLAIMED</div>
+        <div>Reports: <b>${s.claimedReports}</b></div>
+        <div>Videos: <b>${s.claimedVideos}</b></div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">PREVIOUS VERIFIED</div>
+        <div>Reports: <b>${s.verifiedReports !== null ? s.verifiedReports : 'Not set'}</b></div>
+        <div>Videos: <b>${s.verifiedVideos !== null ? s.verifiedVideos : 'Not set'}</b></div>
+      </div>
+    </div>
+    ${s.notes ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--muted);margin-bottom:5px">EMPLOYEE NOTES</div><div class="remark-box">${s.notes}</div></div>` : ''}
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Verified Reports</label>
+        <input type="number" id="rv_reports" min="0" max="${s.claimedReports}" value="${s.verifiedReports !== null ? s.verifiedReports : s.claimedReports}">
+      </div>
+      <div class="form-group">
+        <label>Verified Videos</label>
+        <input type="number" id="rv_videos" min="0" max="${s.claimedVideos}" value="${s.verifiedVideos !== null ? s.verifiedVideos : s.claimedVideos}">
+      </div>
+      <div class="form-group form-full">
+        <label>Review Remark</label>
+        <textarea id="rv_remark" placeholder="Add a remark for the employee…">${s.adminRemark||''}</textarea>
+      </div>
+    </div>`;
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+function saveReview(status) {
+  const s = submissions.find(x=>x.id===reviewingSubId);
+  const oldVR = s.verifiedReports;
+  const newVR = parseInt(document.getElementById('rv_reports').value) || 0;
+  const newVV = parseInt(document.getElementById('rv_videos').value) || 0;
+  const remark = document.getElementById('rv_remark').value.trim();
+
+  // Audit if changed
+  if (oldVR !== null && oldVR !== newVR) {
+    auditLog.push({
+      id: nextAuditId++,
+      submissionId: s.id,
+      changedBy: currentUserId,
+      action: status,
+      field: 'verified_reports',
+      oldVal: oldVR,
+      newVal: newVR,
+      reason: remark,
+      timestamp: new Date().toISOString()
+    });
+  } else if (oldVR === null) {
+    auditLog.push({
+      id: nextAuditId++,
+      submissionId: s.id,
+      changedBy: currentUserId,
+      action: status,
+      field: 'verified_reports',
+      oldVal: s.claimedReports,
+      newVal: newVR,
+      reason: remark,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  s.verifiedReports = newVR;
+  s.verifiedVideos = newVV;
+  s.adminRemark = remark;
+  s.status = status;
+  s.reviewedBy = currentUserId;
+  s.reviewedAt = new Date().toISOString();
+
+  closeModal('reviewModal');
+  buildNav();
+  renderPage(isAdmin() ? 'adminReview' : 'allSubmissions');
+  showToast(`Submission marked as ${status}`);
+}
+
+function openSubmitModal() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('subDate').value = today;
+  document.getElementById('subReports').value = '';
+  document.getElementById('subVideos').value = '';
+  document.getElementById('subNotes').value = '';
+  document.getElementById('submitModal').classList.add('open');
+}
+
+function submitWork() {
+  const date = document.getElementById('subDate').value;
+  const reports = parseInt(document.getElementById('subReports').value) || 0;
+  const videos = parseInt(document.getElementById('subVideos').value) || 0;
+  const notes = document.getElementById('subNotes').value.trim();
+  if (!date) { alert('Please select a date.'); return; }
+  submissions.push({
+    id: nextSubId++, employeeId: currentUserId, date, claimedReports: reports,
+    claimedVideos: videos, verifiedReports: null, verifiedVideos: null,
+    status: 'Pending', notes, adminRemark: '', reviewedBy: null, reviewedAt: null
+  });
+  closeModal('submitModal');
+  buildNav();
+  renderPage('empDashboard');
+  showToast('Submission sent for review!');
+}
+
+function viewRemark(subId) {
+  const s = submissions.find(x=>x.id===subId);
+  const rev = s.reviewedBy ? getUser(s.reviewedBy) : null;
+  document.getElementById('remarkModalBody').innerHTML = `
+    <div class="remark-box">
+      <div class="remark-meta">By ${rev?.name||'Admin'} · ${fmtDT(s.reviewedAt)}</div>
+      ${s.adminRemark || '<span style="color:var(--muted)">No remark added.</span>'}
+    </div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><div style="font-size:11px;color:var(--muted)">CLAIMED REPORTS</div><div style="font-weight:700;font-size:18px">${s.claimedReports}</div></div>
+      <div><div style="font-size:11px;color:var(--muted)">VERIFIED REPORTS</div><div style="font-weight:700;font-size:18px;color:var(--green)">${s.verifiedReports??'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--muted)">CLAIMED VIDEOS</div><div style="font-weight:700;font-size:18px">${s.claimedVideos}</div></div>
+      <div><div style="font-size:11px;color:var(--muted)">VERIFIED VIDEOS</div><div style="font-weight:700;font-size:18px;color:var(--green)">${s.verifiedVideos??'—'}</div></div>
+    </div>`;
+  document.getElementById('remarkModal').classList.add('open');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// User Switch
+function openUserSwitch() {
+  const list = document.getElementById('userList');
+  list.innerHTML = USERS.map(u => `
+    <div onclick="switchUser(${u.id})" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:2px solid ${u.id===currentUserId?'var(--accent)':'var(--border)'};background:${u.id===currentUserId?'rgba(92,110,248,0.08)':'transparent'};transition:all 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="if(${u.id}!==${currentUserId})this.style.borderColor='var(--border)'">
+      <div style="width:36px;height:36px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px">${u.initials}</div>
+      <div><div style="font-weight:600">${u.name}</div><div style="font-size:12px;color:var(--muted)">${u.role==='admin'?'Head (Admin)':'Employee'}</div></div>
+      ${u.id===currentUserId?'<span style="margin-left:auto;font-size:11px;color:var(--accent)">Active</span>':''}
+    </div>`).join('');
+  document.getElementById('userSwitchModal').classList.add('open');
+}
+
+function switchUser(id) {
+  currentUserId = id;
+  closeModal('userSwitchModal');
+  renderAll();
+  const firstPage = isAdmin() ? 'adminDashboard' : 'empDashboard';
+  document.querySelector('.nav-item')?.classList.add('active');
+}
+
+function updateSidebar() {
+  const u = currentUser();
+  document.getElementById('sidebarAvatar').textContent = u.initials;
+  document.getElementById('sidebarAvatar').style.background = u.color;
+  document.getElementById('sidebarName').textContent = u.name;
+  document.getElementById('sidebarRoleLabel').textContent = u.role === 'admin' ? 'Head (Admin)' : 'Employee';
+  const badge = document.getElementById('sidebarRoleBadge');
+  badge.textContent = u.role === 'admin' ? 'Admin' : 'Employee';
+  badge.className = `role-badge ${u.role === 'admin' ? 'admin' : 'employee'}`;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1e2235;border:1px solid var(--border);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;box-shadow:0 4px 24px rgba(0,0,0,0.4);animation:slideIn 0.2s ease';
+  t.textContent = '✓ ' + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+// Init
+renderAll();
+</script>
+</body>
+</html>
