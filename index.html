@@ -168,9 +168,74 @@
     .form-grid { grid-template-columns: 1fr; }
     .stat-grid { grid-template-columns: 1fr 1fr; }
   }
+
+.menu-btn{display:none;}
+
+@media(max-width:768px){
+  .menu-btn{
+    display:block;
+    position:fixed;
+    top:15px;
+    left:15px;
+    z-index:1000;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:10px 14px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+
+  .sidebar{
+    position:fixed !important;
+    left:-260px;
+    top:0;
+    height:100vh;
+    width:240px !important;
+    z-index:999;
+    transition:left .3s ease;
+  }
+
+  .sidebar.active{
+    left:0;
+  }
+
+  .main{
+    width:100%;
+  }
+
+  .page{
+    padding:16px;
+    padding-top:70px;
+  }
+
+  .stat-grid,
+  .form-grid{
+    grid-template-columns:1fr !important;
+  }
+
+  .table-wrap{
+    overflow-x:auto;
+  }
+
+  .tabs{
+    width:100%;
+    overflow-x:auto;
+  }
+
+  .page-header h2{
+    font-size:20px;
+  }
+
+  .stat-value{
+    font-size:22px;
+  }
+}
+
 </style>
 </head>
 <body>
+<button class="menu-btn" onclick="toggleSidebar()">☰</button>
 <div class="app">
 
   <!-- Sidebar -->
@@ -872,6 +937,30 @@ function showToast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2800);
 }
+
+
+function toggleSidebar(){
+  const sb = document.querySelector('.sidebar');
+  sb.classList.toggle('active');
+}
+
+document.addEventListener('click', function(e){
+  if(window.innerWidth <= 768){
+    const sidebar = document.querySelector('.sidebar');
+    const menuBtn = document.querySelector('.menu-btn');
+    if(sidebar && sidebar.classList.contains('active') &&
+       !sidebar.contains(e.target) &&
+       !menuBtn.contains(e.target)){
+      sidebar.classList.remove('active');
+    }
+  }
+});
+
+document.addEventListener('click', function(e){
+  if(window.innerWidth <= 768 && e.target.closest('.nav-item')){
+    document.querySelector('.sidebar')?.classList.remove('active');
+  }
+});
 
 // Init
 renderAll();
